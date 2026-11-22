@@ -1,0 +1,20 @@
+# Build output
+build/
+out/
+*.uf2
+*.elf
+*.bin
+*.hex
+*.map
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python / misc
+__pycache__/
+*.log
