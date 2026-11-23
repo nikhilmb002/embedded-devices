@@ -27,4 +27,9 @@ int  ssd1306_flush(ssd1306_t *d);              /* send framebuffer to the screen
 int  ssd1306_display_on(ssd1306_t *d, bool on);
 void ssd1306_canvas(ssd1306_t *d, edev_canvas_t *c);
 
+int ssd1306_set_contrast(ssd1306_t *d, uint8_t contrast);   /* 0..255 */
+int ssd1306_invert(ssd1306_t *d, bool invert);              /* true = inverted colors */
+int ssd1306_flip(ssd1306_t *d, bool flip_x, bool flip_y);   /* mirror horizontally / vertically */
+int ssd1306_all_pixels_on(ssd1306_t *d, bool on);           /* test mode: light every pixel */
+
 #endif /* EDEV_SSD1306_H */

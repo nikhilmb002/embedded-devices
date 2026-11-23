@@ -88,9 +88,43 @@ static void canvas_set_pixel(void *ctx, int x, int y, bool on) {
 void ssd1306_canvas(ssd1306_t *d, edev_canvas_t *c) {
 
     if (!d || !c) return;
-    
+
     c->ctx       = d;
     c->width     = SSD1306_WIDTH;
     c->height    = SSD1306_HEIGHT;
     c->set_pixel = canvas_set_pixel;
+}
+
+int ssd1306_set_contrast(ssd1306_t *d, uint8_t contrast) {
+
+    if (!d) return EDEV_ERR_INVAL;
+    uint8_t cmd[2] = { 0x81, contrast };
+    return send_cmds(d, cmd, sizeof(cmd));
+}
+
+int ssd1306_invert(ssd1306_t *d, bool invert) {
+
+    if (!d) return EDEV_ERR_INVAL;
+    uint8_t c = invert ? 0xA7 : 0xA6;
+    return send_cmds(d, &c, 1);
+}
+
+int ssd1306_flip(ssd1306_t *d, bool flip_x, bool flip_y) {
+
+    if (!d) return EDEV_ERR_INVAL;
+
+    uint8_t cmd[2] = {
+        (uint8_t)(flip_x ? 0xA1 : 0xA0),   /* segment remap */
+        (uint8_t)(flip_y ? 0xC8 : 0xC0)    /* COM scan direction */
+    };
+
+    return send_cmds(d, cmd, sizeof(cmd));
+}
+
+int ssd1306_all_pixels_on(ssd1306_t *d, bool on) {
+
+    if (!d) return EDEV_ERR_INVAL;
+    
+    uint8_t c = on ? 0xA5 : 0xA4;
+    return send_cmds(d, &c, 1);
 }
