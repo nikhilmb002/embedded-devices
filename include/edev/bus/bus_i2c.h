@@ -29,6 +29,15 @@ struct edev_i2c_bus {
     void *ctx;                   /* backend private data (e.g. i2c0) */
 };
 
+static inline int edev_i2c_write(edev_i2c_bus_t *bus, uint8_t addr,
+                                 const uint8_t *buf, size_t len, bool nostop)
+{
+    if (!bus || !bus->ops || !buf || len == 0) return EDEV_ERR_INVAL;
+    if (!bus->ops->write) return EDEV_ERR_NOSUPPORT;
+    return bus->ops->write(bus, addr, buf, len, nostop);
+}
+
+
 static inline int edev_i2c_read(edev_i2c_bus_t *bus, uint8_t addr,
                                 uint8_t *buf, size_t len, bool nostop) {
     
