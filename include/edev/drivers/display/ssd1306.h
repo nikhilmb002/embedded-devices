@@ -17,6 +17,8 @@
  */
 typedef struct {
     edev_i2c_dev_t dev;
+    uint8_t        dirty;       /* bit n set = page n changed since last flush */
+    bool           scrolling;   /* true while hardware scroll is active */
     uint8_t        buf[1 + SSD1306_FB_SIZE];
 } ssd1306_t;
 
@@ -55,5 +57,9 @@ int ssd1306_scroll_diagonal(ssd1306_t *d, bool right,
                             ssd1306_scroll_speed_t speed, uint8_t v_offset);
 
 int ssd1306_scroll_stop(ssd1306_t *d);
+
+/* Send only the pages that changed since the last flush. Returns EDEV_OK
+ * immediately if nothing changed. */
+int ssd1306_flush_dirty(ssd1306_t *d);
 
 #endif /* EDEV_SSD1306_H */

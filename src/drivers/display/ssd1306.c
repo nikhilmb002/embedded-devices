@@ -6,6 +6,8 @@
 
 #define FB(d) ((d)->buf + 1)
 
+int ssd1306_scroll_stop(ssd1306_t *d);
+
 /* Control byte 0x00 + N command bytes, sent as ONE I2C transaction. */
 static int send_cmds(ssd1306_t *d, const uint8_t *cmds, size_t n) {
    
@@ -41,36 +43,83 @@ int ssd1306_init(ssd1306_t *d, edev_i2c_bus_t *bus, uint8_t addr) {
 
     edev_i2c_dev_init(&d->dev, bus, addr);
     d->buf[0] = SSD1306_CTRL_DATA;
+    d->scrolling = false;
     ssd1306_clear(d);
     return send_cmds(d, seq, sizeof(seq));
 }
 
 void ssd1306_clear(ssd1306_t *d) {
-   
+
     if (!d) return;
     memset(FB(d), 0, SSD1306_FB_SIZE);
+    d->dirty = 0xFF;
 }
 
 void ssd1306_set_pixel(ssd1306_t *d, int x, int y, bool on) {
 
     if (!d || x < 0 || x >= SSD1306_WIDTH || y < 0 || y >= SSD1306_HEIGHT) return;
-    uint8_t *p = &FB(d)[x + (y / 8) * SSD1306_WIDTH];
+
+    uint8_t *p   = &FB(d)[x + (y / 8) * SSD1306_WIDTH];
+    uint8_t old  = *p;
+
     if (on) *p |=  (uint8_t)(1u << (y % 8));
     else    *p &= (uint8_t)~(1u << (y % 8));
+    if (*p != old) d->dirty |= (uint8_t)(1u << (y / 8));   /* only if it really changed */
 }
 
 int ssd1306_flush(ssd1306_t *d) {
 
     if (!d) return EDEV_ERR_INVAL;
 
+    if (d->scrolling) {                      /* never write RAM while scrolling */
+        int r = ssd1306_scroll_stop(d);
+        if (r != EDEV_OK) return r;
+    }
+
     static const uint8_t window[] = {
-        0x21, 0, SSD1306_WIDTH - 1,   /* column range */
-        0x22, 0, 7                    /* page range */
+        0x21, 0, SSD1306_WIDTH - 1,
+        0x22, 0, 7
     };
     int r = send_cmds(d, window, sizeof(window));
+
     if (r != EDEV_OK) return r;
 
-    return edev_i2c_dev_write(&d->dev, d->buf, sizeof(d->buf));
+    r = edev_i2c_dev_write(&d->dev, d->buf, sizeof(d->buf));
+
+    if (r == EDEV_OK) d->dirty = 0;
+    
+    return r;
+}
+
+int ssd1306_flush_dirty(ssd1306_t *d) {
+
+    if (!d) return EDEV_ERR_INVAL;
+    if (d->dirty == 0) return EDEV_OK;
+
+    if (d->scrolling) {
+        int r = ssd1306_scroll_stop(d);
+        if (r != EDEV_OK) return r;
+    }
+
+    for (uint8_t page = 0; page < 8; page++) {
+        
+        if (!(d->dirty & (1u << page))) continue;
+
+        uint8_t window[] = { 0x21, 0, SSD1306_WIDTH - 1, 0x22, page, page };
+        int r = send_cmds(d, window, sizeof(window));
+        
+        if (r != EDEV_OK) return r;
+
+        uint8_t tmp[1 + SSD1306_WIDTH];          /* control byte + one page */
+        tmp[0] = SSD1306_CTRL_DATA;
+        memcpy(&tmp[1], &FB(d)[page * SSD1306_WIDTH], SSD1306_WIDTH);
+        r = edev_i2c_dev_write(&d->dev, tmp, sizeof(tmp));
+        
+        if (r != EDEV_OK) return r;
+
+        d->dirty &= (uint8_t)~(1u << page);      /* clear only after success */
+    }
+    return EDEV_OK;
 }
 
 int ssd1306_display_on(ssd1306_t *d, bool on) {
@@ -133,7 +182,9 @@ int ssd1306_scroll_stop(ssd1306_t *d) {
 
     if (!d) return EDEV_ERR_INVAL;
     uint8_t c = 0x2E;
-    return send_cmds(d, &c, 1);
+    int r = send_cmds(d, &c, 1);
+    if (r == EDEV_OK) d->scrolling = false;
+    return r;
 }
 
 int ssd1306_scroll_horizontal(ssd1306_t *d, bool right,
@@ -153,13 +204,16 @@ int ssd1306_scroll_horizontal(ssd1306_t *d, bool right,
         0x00, 0xFF,                    /* dummy bytes required by the chip */
         0x2F                           /* activate */
     };
-    return send_cmds(d, cmd, sizeof(cmd));
+    
+    int r = send_cmds(d, cmd, sizeof(cmd));
+    if (r == EDEV_OK) d->scrolling = true;
+    return r;
 }
 
 int ssd1306_scroll_diagonal(ssd1306_t *d, bool right,
                             uint8_t start_page, uint8_t end_page,
                             ssd1306_scroll_speed_t speed, uint8_t v_offset) {
-                                
+
     if (!d || start_page > 7 || end_page > 7 || start_page > end_page ||
         v_offset < 1 || v_offset > 63)
         return EDEV_ERR_INVAL;
@@ -175,5 +229,8 @@ int ssd1306_scroll_diagonal(ssd1306_t *d, bool right,
         v_offset,
         0x2F
     };
-    return send_cmds(d, cmd, sizeof(cmd));
+    
+    int r = send_cmds(d, cmd, sizeof(cmd));
+    if (r == EDEV_OK) d->scrolling = true;
+    return r;
 }
