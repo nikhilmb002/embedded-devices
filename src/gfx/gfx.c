@@ -140,3 +140,24 @@ void gfx_printf(const edev_canvas_t *c, int x, int y, int scale, bool on,
     va_end(ap);
     gfx_draw_string(c, x, y, buf, scale, on);
 }
+
+void gfx_draw_bitmap(const edev_canvas_t *c, int x, int y,
+                     const uint8_t *bitmap, int w, int h, bool on) {
+
+    if (!bitmap || w <= 0 || h <= 0) return;
+
+    int bytes_per_row = (w + 7) / 8;
+
+    for (int row = 0; row < h; row++) {
+
+        for (int col = 0; col < w; col++) {
+
+            uint8_t b = bitmap[row * bytes_per_row + col / 8];
+            
+            if (b & (0x80u >> (col % 8))) {
+                
+                gfx_set_pixel(c, x + col, y + row, on);
+            }
+        }
+    }
+}
