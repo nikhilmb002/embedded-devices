@@ -32,4 +32,28 @@ int ssd1306_invert(ssd1306_t *d, bool invert);              /* true = inverted c
 int ssd1306_flip(ssd1306_t *d, bool flip_x, bool flip_y);   /* mirror horizontally / vertically */
 int ssd1306_all_pixels_on(ssd1306_t *d, bool on);           /* test mode: light every pixel */
 
+/* Scroll interval = time between steps, in frames. */
+typedef enum {
+    SSD1306_SCROLL_5_FRAMES   = 0x00,   /* fastest-ish */
+    SSD1306_SCROLL_64_FRAMES  = 0x01,
+    SSD1306_SCROLL_128_FRAMES = 0x02,
+    SSD1306_SCROLL_256_FRAMES = 0x03,   /* slowest */
+    SSD1306_SCROLL_3_FRAMES   = 0x04,
+    SSD1306_SCROLL_4_FRAMES   = 0x05,
+    SSD1306_SCROLL_25_FRAMES  = 0x06,
+    SSD1306_SCROLL_2_FRAMES   = 0x07    /* fastest */
+} ssd1306_scroll_speed_t;
+
+/* Pages are 8-pixel rows: 0..7. start_page <= end_page. */
+int ssd1306_scroll_horizontal(ssd1306_t *d, bool right,
+                              uint8_t start_page, uint8_t end_page,
+                              ssd1306_scroll_speed_t speed);
+
+/* Horizontal scroll plus a vertical movement of 'v_offset' rows per step (1..63). */
+int ssd1306_scroll_diagonal(ssd1306_t *d, bool right,
+                            uint8_t start_page, uint8_t end_page,
+                            ssd1306_scroll_speed_t speed, uint8_t v_offset);
+
+int ssd1306_scroll_stop(ssd1306_t *d);
+
 #endif /* EDEV_SSD1306_H */

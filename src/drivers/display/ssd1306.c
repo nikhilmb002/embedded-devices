@@ -128,3 +128,52 @@ int ssd1306_all_pixels_on(ssd1306_t *d, bool on) {
     uint8_t c = on ? 0xA5 : 0xA4;
     return send_cmds(d, &c, 1);
 }
+
+int ssd1306_scroll_stop(ssd1306_t *d) {
+
+    if (!d) return EDEV_ERR_INVAL;
+    uint8_t c = 0x2E;
+    return send_cmds(d, &c, 1);
+}
+
+int ssd1306_scroll_horizontal(ssd1306_t *d, bool right,
+                              uint8_t start_page, uint8_t end_page,
+                              ssd1306_scroll_speed_t speed) {
+
+    if (!d || start_page > 7 || end_page > 7 || start_page > end_page)
+        return EDEV_ERR_INVAL;
+
+    uint8_t cmd[] = {
+        0x2E,                          /* stop first: config must not change while active */
+        (uint8_t)(right ? 0x26 : 0x27),
+        0x00,                          /* dummy */
+        start_page,
+        (uint8_t)speed,
+        end_page,
+        0x00, 0xFF,                    /* dummy bytes required by the chip */
+        0x2F                           /* activate */
+    };
+    return send_cmds(d, cmd, sizeof(cmd));
+}
+
+int ssd1306_scroll_diagonal(ssd1306_t *d, bool right,
+                            uint8_t start_page, uint8_t end_page,
+                            ssd1306_scroll_speed_t speed, uint8_t v_offset) {
+                                
+    if (!d || start_page > 7 || end_page > 7 || start_page > end_page ||
+        v_offset < 1 || v_offset > 63)
+        return EDEV_ERR_INVAL;
+
+    uint8_t cmd[] = {
+        0x2E,
+        0xA3, 0x00, SSD1306_HEIGHT,    /* vertical scroll area: 0 fixed rows, 64 scrolling */
+        (uint8_t)(right ? 0x29 : 0x2A),
+        0x00,                          /* dummy */
+        start_page,
+        (uint8_t)speed,
+        end_page,
+        v_offset,
+        0x2F
+    };
+    return send_cmds(d, cmd, sizeof(cmd));
+}
