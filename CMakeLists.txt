@@ -27,3 +27,10 @@ if(COMMAND pico_sdk_init OR TARGET pico_stdlib)
         hardware_i2c
     )
 endif()
+
+# ---- Chip drivers: portable, depend only on edev_core ----
+add_library(edev_ssd1306 STATIC
+    src/drivers/display/ssd1306.c
+)
+target_include_directories(edev_ssd1306 PUBLIC include)
+target_link_libraries(edev_ssd1306 PUBLIC edev_core)
