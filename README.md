@@ -24,7 +24,7 @@ Backends          Pico hardware I2C
 ## Quick start (Pico SDK project)
 
 ```powershell
-git submodule add https://github.com/<your-username>/embedded-devices.git external/embedded-devices
+git submodule add https://github.com/nikhilmb002/embedded-devices.git external/embedded-devices
 ```
 
 In your `CMakeLists.txt`, after `pico_sdk_init()`:
