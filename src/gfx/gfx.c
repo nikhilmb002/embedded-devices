@@ -1,6 +1,8 @@
 #include "edev/gfx/gfx.h"
 #include "edev/gfx/font5x7.h"
 #include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 void gfx_set_pixel(const edev_canvas_t *c, int x, int y, bool on) {
 
@@ -124,4 +126,17 @@ int gfx_text_width(const char *s, int scale) {
     while (s[n] && s[n] != '\n') n++;
     
     return n > 0 ? n * (FONT5X7_WIDTH + 1) * scale - scale : 0;
+}
+
+#define GFX_PRINTF_MAX 64
+
+void gfx_printf(const edev_canvas_t *c, int x, int y, int scale, bool on,
+                const char *fmt, ...) {
+
+    char buf[GFX_PRINTF_MAX];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    gfx_draw_string(c, x, y, buf, scale, on);
 }

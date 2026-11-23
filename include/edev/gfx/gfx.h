@@ -16,4 +16,8 @@ void gfx_draw_char  (const edev_canvas_t *c, int x, int y, char ch, int scale, b
 void gfx_draw_string(const edev_canvas_t *c, int x, int y, const char *s, int scale, bool on);
 int  gfx_text_width (const char *s, int scale);   /* width in pixels */
 
+/* printf-style text. Output is limited to 64 characters (longer text is cut). */
+void gfx_printf(const edev_canvas_t *c, int x, int y, int scale, bool on,
+                const char *fmt, ...) __attribute__((format(printf, 6, 7)));
+
 #endif /* EDEV_GFX_H */
