@@ -52,6 +52,8 @@ ssd1306_flush(&oled);
 ```
 
 See `examples/ssd1306_demo` and `docs/wiring`.
+See [`docs/wiring/mpu6050.md`](docs/wiring/mpu6050.md) for MPU6050, AD0, and
+auxiliary XDA/XCL wiring.
 
 The MPU6050/MPU6500 driver is portable and uses the same I2C bus abstraction:
 
