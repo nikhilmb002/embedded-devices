@@ -80,3 +80,17 @@ int ssd1306_display_on(ssd1306_t *d, bool on) {
     return send_cmds(d, &c, 1);
 }
 
+static void canvas_set_pixel(void *ctx, int x, int y, bool on) {
+
+    ssd1306_set_pixel((ssd1306_t *)ctx, x, y, on);
+}
+
+void ssd1306_canvas(ssd1306_t *d, edev_canvas_t *c) {
+
+    if (!d || !c) return;
+    
+    c->ctx       = d;
+    c->width     = SSD1306_WIDTH;
+    c->height    = SSD1306_HEIGHT;
+    c->set_pixel = canvas_set_pixel;
+}

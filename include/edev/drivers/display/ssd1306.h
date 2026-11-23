@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "edev/bus/i2c_dev.h"
+#include "edev/gfx/canvas.h"
 
 #define SSD1306_WIDTH   128
 #define SSD1306_HEIGHT  64
@@ -24,5 +25,6 @@ void ssd1306_clear(ssd1306_t *d);
 void ssd1306_set_pixel(ssd1306_t *d, int x, int y, bool on);
 int  ssd1306_flush(ssd1306_t *d);              /* send framebuffer to the screen */
 int  ssd1306_display_on(ssd1306_t *d, bool on);
+void ssd1306_canvas(ssd1306_t *d, edev_canvas_t *c);
 
 #endif /* EDEV_SSD1306_H */

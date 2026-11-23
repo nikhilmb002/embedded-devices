@@ -34,3 +34,9 @@ add_library(edev_ssd1306 STATIC
 )
 target_include_directories(edev_ssd1306 PUBLIC include)
 target_link_libraries(edev_ssd1306 PUBLIC edev_core)
+
+# ---- Graphics layer: portable, works with any canvas ----
+add_library(edev_gfx STATIC
+    src/gfx/gfx.c
+)
+target_include_directories(edev_gfx PUBLIC include)
