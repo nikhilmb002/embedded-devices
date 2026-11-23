@@ -19,7 +19,7 @@ Backends          Pico hardware I2C
 | Driver / backend | Bus | Status |
 |---|---|---|
 | SSD1306 128x64 OLED | I2C | experimental (tested on Pico 2) |
-| MPU6050 6-axis IMU | I2C | experimental |
+| MPU6050 / MPU6500 6-axis IMU | I2C | experimental |
 | Pico hardware I2C backend | I2C | experimental |
 
 ## Quick start (Pico SDK project)
@@ -53,7 +53,7 @@ ssd1306_flush(&oled);
 
 See `examples/ssd1306_demo` and `docs/wiring`.
 
-The MPU6050 driver is portable and uses the same I2C bus abstraction:
+The MPU6050/MPU6500 driver is portable and uses the same I2C bus abstraction:
 
 ```c
 #include "edev/drivers/motion/mpu6050.h"

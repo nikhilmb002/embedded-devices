@@ -55,7 +55,8 @@ int mpu6050_init(mpu6050_t *d, edev_i2c_bus_t *bus, uint8_t addr) {
     uint8_t id;
     int r = read_bytes(d, REG_WHO_AM_I, &id, 1);
     if (r != EDEV_OK) return r;
-    if ((id & 0x7E) != MPU6050_WHO_AM_I) return EDEV_ERR_IO;
+    if (id != MPU6050_WHO_AM_I && id != MPU6500_WHO_AM_I) return EDEV_ERR_IO;
+    d->who_am_i = id;
     r = write_byte(d, REG_PWR_MGMT_1, 0x01);
     if (r != EDEV_OK) return r;
     r = write_byte(d, REG_PWR_MGMT_2, 0x00);

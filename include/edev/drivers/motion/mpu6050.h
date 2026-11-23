@@ -9,6 +9,7 @@
 #define MPU6050_ADDR_AD0_LOW  0x68
 #define MPU6050_ADDR_AD0_HIGH 0x69
 #define MPU6050_WHO_AM_I      0x68
+#define MPU6500_WHO_AM_I      0x70
 #define MPU6050_DMP_MEMORY_SIZE 2048u
 
 typedef enum {
@@ -51,9 +52,11 @@ typedef struct {
     edev_i2c_dev_t dev;
     mpu6050_accel_range_t accel_range;
     mpu6050_gyro_range_t gyro_range;
+    uint8_t who_am_i; /* identifies MPU6050 (0x68) or MPU6500 (0x70) */
 } mpu6050_t;
 
-/* Initialization verifies WHO_AM_I, wakes the device, and selects ±2 g/±250 dps. */
+/* Initialization accepts MPU6050/MPU6500, wakes the device, and selects
+ * ±2 g/±250 dps. */
 int mpu6050_init(mpu6050_t *d, edev_i2c_bus_t *bus, uint8_t addr);
 int mpu6050_reset(mpu6050_t *d);
 int mpu6050_read_register(mpu6050_t *d, uint8_t reg, uint8_t *value);

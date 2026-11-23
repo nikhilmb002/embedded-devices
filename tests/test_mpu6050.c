@@ -54,6 +54,15 @@ int main(void) {
     mpu6050_t imu;
     assert(mpu6050_init(&imu, &bus, MPU6050_ADDR_AD0_LOW) == EDEV_OK);
     assert(mock.regs[0x6B] == 1);
+    assert(imu.who_am_i == MPU6050_WHO_AM_I);
+
+    mock.regs[0x75] = MPU6500_WHO_AM_I;
+    assert(mpu6050_init(&imu, &bus, MPU6050_ADDR_AD0_LOW) == EDEV_OK);
+    assert(imu.who_am_i == MPU6500_WHO_AM_I);
+    mock.regs[0x75] = 0x71;
+    assert(mpu6050_init(&imu, &bus, MPU6050_ADDR_AD0_LOW) == EDEV_ERR_IO);
+    mock.regs[0x75] = MPU6050_WHO_AM_I;
+    assert(mpu6050_init(&imu, &bus, MPU6050_ADDR_AD0_LOW) == EDEV_OK);
 
     const uint8_t raw[14] = {0x40,0x00, 0xC0,0x00, 0x20,0x00,
                              0x00,0x00, 0x00,0x83, 0xFF,0x7D, 0x00,0x00};
