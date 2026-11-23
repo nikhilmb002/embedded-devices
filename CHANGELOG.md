@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+- Add portable MPU6050 driver with raw/scaled readings, configuration, FIFO,
+  interrupts, auxiliary I2C controls, self-test/offset access, and DMP image upload.
+- Add a host mock-bus test for sensor decoding, scaling, errors, and DMP memory.
+
 ## v0.1.0
 - Error codes and I2C bus interface (ops table)
 - i2c_dev helper (bus + address, register read/write)

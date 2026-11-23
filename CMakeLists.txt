@@ -35,8 +35,22 @@ add_library(edev_ssd1306 STATIC
 target_include_directories(edev_ssd1306 PUBLIC include)
 target_link_libraries(edev_ssd1306 PUBLIC edev_core)
 
+# ---- Motion sensor drivers: portable, depend only on edev_core ----
+add_library(edev_mpu6050 STATIC
+    src/drivers/motion/mpu6050.c
+)
+target_include_directories(edev_mpu6050 PUBLIC include)
+target_link_libraries(edev_mpu6050 PUBLIC edev_core)
+
 # ---- Graphics layer: portable, works with any canvas ----
 add_library(edev_gfx STATIC
     src/gfx/gfx.c
 )
 target_include_directories(edev_gfx PUBLIC include)
+
+if(EDEV_BUILD_TESTS)
+    enable_testing()
+    add_executable(test_mpu6050 tests/test_mpu6050.c)
+    target_link_libraries(test_mpu6050 PRIVATE edev_mpu6050)
+    add_test(NAME mpu6050 COMMAND test_mpu6050)
+endif()
