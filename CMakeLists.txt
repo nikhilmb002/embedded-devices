@@ -14,3 +14,16 @@ add_library(edev_core STATIC
     src/bus/i2c_dev.c
 )
 target_include_directories(edev_core PUBLIC include)
+
+# ---- Pico hardware backend: only when the Pico SDK is present ----
+if(COMMAND pico_sdk_init OR TARGET pico_stdlib)
+    add_library(edev_backend_pico STATIC
+        src/backends/pico/i2c_hw.c
+    )
+    target_include_directories(edev_backend_pico PUBLIC include)
+    target_link_libraries(edev_backend_pico PUBLIC
+        edev_core
+        pico_stdlib
+        hardware_i2c
+    )
+endif()
