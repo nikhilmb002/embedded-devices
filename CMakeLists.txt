@@ -12,6 +12,7 @@ option(EDEV_BUILD_TESTS    "Build host unit tests" OFF)
 # ---- Portable core: no hardware dependencies ----
 add_library(edev_core STATIC
     src/bus/i2c_dev.c
+    src/bus/spi_dev.c
 )
 target_include_directories(edev_core PUBLIC include)
 
@@ -19,12 +20,14 @@ target_include_directories(edev_core PUBLIC include)
 if(COMMAND pico_sdk_init OR TARGET pico_stdlib)
     add_library(edev_backend_pico STATIC
         src/backends/pico/i2c_hw.c
+        src/backends/pico/spi_hw.c
     )
     target_include_directories(edev_backend_pico PUBLIC include)
     target_link_libraries(edev_backend_pico PUBLIC
         edev_core
         pico_stdlib
         hardware_i2c
+        hardware_spi
     )
 endif()
 
@@ -34,6 +37,13 @@ add_library(edev_ssd1306 STATIC
 )
 target_include_directories(edev_ssd1306 PUBLIC include)
 target_link_libraries(edev_ssd1306 PUBLIC edev_core)
+
+# ---- W25Q32 SPI flash driver ----
+add_library(edev_w25q32 STATIC
+    src/drivers/flash/w25q32.c
+)
+target_include_directories(edev_w25q32 PUBLIC include)
+target_link_libraries(edev_w25q32 PUBLIC edev_core)
 
 # ---- Graphics layer: portable, works with any canvas ----
 add_library(edev_gfx STATIC
