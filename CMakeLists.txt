@@ -38,5 +38,7 @@ target_link_libraries(edev_ssd1306 PUBLIC edev_core)
 # ---- Graphics layer: portable, works with any canvas ----
 add_library(edev_gfx STATIC
     src/gfx/gfx.c
+    src/gfx/font5x7.c
 )
 target_include_directories(edev_gfx PUBLIC include)
+target_link_libraries(edev_gfx PUBLIC edev_core)
