@@ -1,4 +1,5 @@
 #include "edev/gfx/gfx.h"
+#include "edev/gfx/font5x7.h"
 #include <stdlib.h>
 
 void gfx_set_pixel(const edev_canvas_t *c, int x, int y, bool on) {
@@ -76,4 +77,51 @@ void gfx_fill_circle(const edev_canvas_t *c, int cx, int cy, int r, bool on) {
         for (int i = -r; i <= r; i++)
             if (i * i + j * j <= r * r)
                 gfx_set_pixel(c, cx + i, cy + j, on);
+}
+
+void gfx_draw_char(const edev_canvas_t *c, int x, int y, char ch, int scale, bool on)
+{
+    if (scale < 1) scale = 1;
+    if (ch < FONT5X7_FIRST || ch > FONT5X7_LAST) ch = '?';
+    const uint8_t *glyph = font5x7[ch - FONT5X7_FIRST];
+
+    for (int col = 0; col < FONT5X7_WIDTH; col++) {
+        for (int row = 0; row < FONT5X7_HEIGHT; row++) {
+            if (glyph[col] & (1u << row)) {
+                gfx_fill_rect(c, x + col * scale, y + row * scale, scale, scale, on);
+            }
+        }
+    }
+}
+
+void gfx_draw_string(const edev_canvas_t *c, int x, int y, const char *s, int scale, bool on) {
+
+    if (!s) return;
+    if (scale < 1) scale = 1;
+    
+    int cx = x;
+    
+    while (*s) {
+    
+        if (*s == '\n') {                       /* new line */
+            cx = x;
+            y += (FONT5X7_HEIGHT + 1) * scale;
+        } else {
+            gfx_draw_char(c, cx, y, *s, scale, on);
+            cx += (FONT5X7_WIDTH + 1) * scale;  /* 5 pixels + 1 gap */
+        }
+        s++;
+    }
+}
+
+int gfx_text_width(const char *s, int scale) {
+
+    if (!s) return 0;
+    if (scale < 1) scale = 1;
+    
+    int n = 0;
+    
+    while (s[n] && s[n] != '\n') n++;
+    
+    return n > 0 ? n * (FONT5X7_WIDTH + 1) * scale - scale : 0;
 }
