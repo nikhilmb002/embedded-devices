@@ -38,6 +38,20 @@ typedef enum {
     MPU6050_DLPF_5HZ   = 6
 } mpu6050_dlpf_t;
 
+/* Raw sensor counts, exactly as the chip reports them. */
+typedef struct {
+    int16_t ax, ay, az;
+    int16_t temp;
+    int16_t gx, gy, gz;
+} mpu6050_raw_t;
+
+/* Converted values: acceleration in g, rotation in degrees/second, temperature in degC. */
+typedef struct {
+    float ax, ay, az;
+    float gx, gy, gz;
+    float temp_c;
+} mpu6050_data_t;
+
 /* The caller owns this struct. No hidden globals. */
 typedef struct {
     edev_i2c_dev_t        dev;
@@ -62,5 +76,14 @@ int mpu6050_set_dlpf       (mpu6050_t *m, mpu6050_dlpf_t dlpf);
 
 /* Sample rate in Hz. Base rate is 1 kHz with the DLPF on, 8 kHz with it at 260 Hz. */
 int mpu6050_set_sample_rate(mpu6050_t *m, uint16_t hz);
+
+/* One 14-byte burst: accel, temperature and gyro from the same sample. */
+int mpu6050_read_raw (mpu6050_t *m, mpu6050_raw_t *raw);
+
+/* Burst read plus conversion using the current ranges and chip type. */
+int mpu6050_read     (mpu6050_t *m, mpu6050_data_t *out);
+
+/* Conversion only (no I2C): useful for FIFO data and host tests. */
+void mpu6050_convert (const mpu6050_t *m, const mpu6050_raw_t *raw, mpu6050_data_t *out);
 
 #endif /* EDEV_MPU6050_H */

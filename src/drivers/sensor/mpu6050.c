@@ -104,3 +104,59 @@ int mpu6050_set_sample_rate(mpu6050_t *m, uint16_t hz) {
     if (div < 1 || div > 256) return EDEV_ERR_INVAL;
     return edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_SMPLRT_DIV, (uint8_t)(div - 1));
 }
+
+static int16_t be16(const uint8_t *p) {
+
+    return (int16_t)(((uint16_t)p[0] << 8) | p[1]);   /* chip sends high byte first */
+}
+
+int mpu6050_read_raw(mpu6050_t *m, mpu6050_raw_t *raw) {
+
+    if (!m || !raw) return EDEV_ERR_INVAL;
+    
+    uint8_t b[14];
+    int r = edev_i2c_dev_read_regs(&m->dev, MPU6050_REG_ACCEL_XOUT_H, b, sizeof(b));
+    
+    if (r != EDEV_OK) return r;
+
+    raw->ax   = be16(&b[0]);
+    raw->ay   = be16(&b[2]);
+    raw->az   = be16(&b[4]);
+    raw->temp = be16(&b[6]);
+    raw->gx   = be16(&b[8]);
+    raw->gy   = be16(&b[10]);
+    raw->gz   = be16(&b[12]);
+    return EDEV_OK;
+}
+
+void mpu6050_convert(const mpu6050_t *m, const mpu6050_raw_t *raw, mpu6050_data_t *out) {
+
+    /* LSB per g and per deg/s for range settings 0..3 */
+    static const float accel_lsb[4] = { 16384.0f, 8192.0f, 4096.0f, 2048.0f };
+    static const float gyro_lsb[4]  = { 131.0f, 65.5f, 32.8f, 16.4f };
+
+    float a = accel_lsb[m->accel_range];
+    float g = gyro_lsb[m->gyro_range];
+
+    out->ax = raw->ax / a;  out->ay = raw->ay / a;  out->az = raw->az / a;
+    out->gx = raw->gx / g;  out->gy = raw->gy / g;  out->gz = raw->gz / g;
+
+    if (m->chip == MPU6050_CHIP_MPU6500)
+        out->temp_c = raw->temp / 333.87f + 21.0f;     /* MPU6500 formula */
+    
+    else
+        out->temp_c = raw->temp / 340.0f + 36.53f;     /* MPU6050 formula */
+}
+
+int mpu6050_read(mpu6050_t *m, mpu6050_data_t *out) {
+
+    if (!m || !out) return EDEV_ERR_INVAL;
+    
+    mpu6050_raw_t raw;
+    int r = mpu6050_read_raw(m, &raw);
+    
+    if (r != EDEV_OK) return r;
+    
+    mpu6050_convert(m, &raw, out);
+    return EDEV_OK;
+}
