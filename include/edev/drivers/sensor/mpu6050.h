@@ -128,4 +128,31 @@ int mpu6050_fifo_count(mpu6050_t *m, uint16_t *bytes);
  * The sample layout follows the sources chosen in fifo_start. */
 int mpu6050_fifo_read(mpu6050_t *m, mpu6050_raw_t *out, uint16_t max_samples, uint16_t *got);
 
+typedef enum {
+    MPU6050_CLK_INTERNAL = 0,   /* 8 MHz internal oscillator (less stable) */
+    MPU6050_CLK_PLL_X    = 1,   /* gyro X PLL (recommended, the default) */
+    MPU6050_CLK_PLL_Y    = 2,
+    MPU6050_CLK_PLL_Z    = 3,
+    MPU6050_CLK_STOP     = 7    /* clock stopped, timing generator in reset */
+} mpu6050_clock_t;
+
+/* Wake-up rate in cycle mode (approximate on MPU6500). */
+typedef enum {
+    MPU6050_LP_1_25HZ = 0,
+    MPU6050_LP_5HZ    = 1,
+    MPU6050_LP_20HZ   = 2,
+    MPU6050_LP_40HZ   = 3
+} mpu6050_lp_rate_t;
+
+int mpu6050_set_clock   (mpu6050_t *m, mpu6050_clock_t clk);
+int mpu6050_temp_enable (mpu6050_t *m, bool enable);
+
+/* mask = OR of MPU6050_PWR2_STBY_XA/YA/ZA/XG/YG/ZG. Bits set = axis in standby. */
+int mpu6050_standby     (mpu6050_t *m, uint8_t mask);
+
+/* Low-power accelerometer-only mode: gyro and temperature off,
+ * the chip wakes at 'rate', takes an accel sample, and sleeps. */
+int mpu6050_cycle_start (mpu6050_t *m, mpu6050_lp_rate_t rate);
+int mpu6050_cycle_stop  (mpu6050_t *m);
+
 #endif /* EDEV_MPU6050_H */

@@ -117,4 +117,10 @@
  * gyro : 131, 65.5, 32.8, 16.4 LSB/(deg/s) for +-250, 500, 1000, 2000
  * temp : degC = raw / 340 + 36.53 */
 
+
+/* MPU6500-only registers (clone support) */
+#define MPU6500_REG_ACCEL_CONFIG2   0x1D
+#define MPU6500_REG_LP_ACCEL_ODR    0x1E
+#define MPU6500_ACCEL_FCHOICE_B     0x08
+
 #endif /* EDEV_MPU6050_REGS_H */

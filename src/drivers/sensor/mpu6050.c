@@ -367,3 +367,74 @@ int mpu6050_fifo_read(mpu6050_t *m, mpu6050_raw_t *out, uint16_t max_samples, ui
     }
     return EDEV_OK;
 }
+
+int mpu6050_set_clock(mpu6050_t *m, mpu6050_clock_t clk) {
+
+    if (!m) return EDEV_ERR_INVAL;
+    
+    return mpu6050_update_bits(m, MPU6050_REG_PWR_MGMT_1,
+                               MPU6050_PWR1_CLKSEL_MASK, (uint8_t)clk);
+}
+
+int mpu6050_temp_enable(mpu6050_t *m, bool enable) {
+
+    return mpu6050_update_bits(m, MPU6050_REG_PWR_MGMT_1, MPU6050_PWR1_TEMP_DIS,
+                               enable ? 0 : MPU6050_PWR1_TEMP_DIS);
+}
+
+int mpu6050_standby(mpu6050_t *m, uint8_t mask) {
+
+    return mpu6050_update_bits(m, MPU6050_REG_PWR_MGMT_2, 0x3F, mask);
+}
+
+int mpu6050_cycle_start(mpu6050_t *m, mpu6050_lp_rate_t rate) {
+
+    if (!m || rate > MPU6050_LP_40HZ) return EDEV_ERR_INVAL;
+    int r;
+
+    /* gyros off (cycle mode samples the accelerometer only) */
+    r = mpu6050_standby(m, MPU6050_PWR2_STBY_XG | MPU6050_PWR2_STBY_YG | MPU6050_PWR2_STBY_ZG);
+    
+    if (r != EDEV_OK) return r;
+    
+    r = mpu6050_temp_enable(m, false);
+    
+    if (r != EDEV_OK) return r;
+
+    if (m->chip == MPU6050_CHIP_MPU6500) {
+
+        static const uint8_t odr[4] = { 2, 4, 6, 7 };   /* about 1, 4, 16, 31 Hz */
+        r = edev_i2c_dev_write_reg(&m->dev, MPU6500_REG_ACCEL_CONFIG2, MPU6500_ACCEL_FCHOICE_B);
+        if (r != EDEV_OK) return r;
+        r = edev_i2c_dev_write_reg(&m->dev, MPU6500_REG_LP_ACCEL_ODR, odr[rate]);
+    } else {
+        
+        r = mpu6050_update_bits(m, MPU6050_REG_PWR_MGMT_2, 0xC0,
+                                (uint8_t)(rate << MPU6050_PWR2_LP_WAKE_SHIFT));
+    }
+    
+    if (r != EDEV_OK) return r;
+
+    return mpu6050_update_bits(m, MPU6050_REG_PWR_MGMT_1,
+                               MPU6050_PWR1_CYCLE | MPU6050_PWR1_SLEEP, MPU6050_PWR1_CYCLE);
+}
+
+int mpu6050_cycle_stop(mpu6050_t *m) {
+
+    if (!m) return EDEV_ERR_INVAL;
+    
+    int r = mpu6050_update_bits(m, MPU6050_REG_PWR_MGMT_1, MPU6050_PWR1_CYCLE, 0);
+    
+    if (r != EDEV_OK) return r;
+    if (m->chip == MPU6050_CHIP_MPU6500) {
+
+        r = edev_i2c_dev_write_reg(&m->dev, MPU6500_REG_ACCEL_CONFIG2, 0);
+        if (r != EDEV_OK) return r;
+    }
+
+    r = mpu6050_standby(m, 0);                 /* all axes back on */
+   
+    if (r != EDEV_OK) return r;
+
+    return mpu6050_temp_enable(m, true);
+}
