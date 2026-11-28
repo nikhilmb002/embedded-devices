@@ -67,6 +67,8 @@ int mpu6050_init(mpu6050_t *m, edev_i2c_bus_t *bus, uint8_t addr) {
     m->accel_range = MPU6050_ACCEL_2G;
     m->gyro_range  = MPU6050_GYRO_250DPS;
     m->dlpf        = MPU6050_DLPF_260HZ;
+    m->bias = (mpu6050_raw_t){0};
+
     return EDEV_OK;
 }
 
@@ -119,13 +121,14 @@ int mpu6050_read_raw(mpu6050_t *m, mpu6050_raw_t *raw) {
     
     if (r != EDEV_OK) return r;
 
-    raw->ax   = be16(&b[0]);
-    raw->ay   = be16(&b[2]);
-    raw->az   = be16(&b[4]);
+    raw->ax   = (int16_t)(be16(&b[0])  - m->bias.ax);
+    raw->ay   = (int16_t)(be16(&b[2])  - m->bias.ay);
+    raw->az   = (int16_t)(be16(&b[4])  - m->bias.az);
     raw->temp = be16(&b[6]);
-    raw->gx   = be16(&b[8]);
-    raw->gy   = be16(&b[10]);
-    raw->gz   = be16(&b[12]);
+    raw->gx   = (int16_t)(be16(&b[8])  - m->bias.gx);
+    raw->gy   = (int16_t)(be16(&b[10]) - m->bias.gy);
+    raw->gz   = (int16_t)(be16(&b[12]) - m->bias.gz);
+
     return EDEV_OK;
 }
 
@@ -159,4 +162,41 @@ int mpu6050_read(mpu6050_t *m, mpu6050_data_t *out) {
     
     mpu6050_convert(m, &raw, out);
     return EDEV_OK;
+}
+
+int mpu6050_calibrate(mpu6050_t *m, uint16_t samples, bool level) {
+    
+    if (!m || samples == 0) return EDEV_ERR_INVAL;
+
+    mpu6050_clear_bias(m);
+    int32_t sx = 0, sy = 0, sz = 0, gx = 0, gy = 0, gz = 0;
+
+    for (uint16_t i = 0; i < samples; i++) {
+        mpu6050_raw_t r;
+        int e = mpu6050_read_raw(m, &r);
+        if (e != EDEV_OK) return e;
+        sx += r.ax; sy += r.ay; sz += r.az;
+        gx += r.gx; gy += r.gy; gz += r.gz;
+        edev_delay_ms(5);
+    }
+
+    m->bias.ax = (int16_t)(sx / samples);
+    m->bias.ay = (int16_t)(sy / samples);
+    m->bias.az = (int16_t)(sz / samples);
+    m->bias.gx = (int16_t)(gx / samples);
+    m->bias.gy = (int16_t)(gy / samples);
+    m->bias.gz = (int16_t)(gz / samples);
+
+    if (level) {
+        static const int16_t one_g[4] = { 16384, 8192, 4096, 2048 };
+        m->bias.az = (int16_t)(m->bias.az - one_g[m->accel_range]);
+    } else {
+        m->bias.ax = m->bias.ay = m->bias.az = 0;   /* accel bias only valid when level */
+    }
+    return EDEV_OK;
+}
+
+void mpu6050_clear_bias(mpu6050_t *m) {
+
+    if (m) m->bias = (mpu6050_raw_t){0};
 }

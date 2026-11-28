@@ -60,6 +60,7 @@ typedef struct {
     mpu6050_accel_range_t accel_range;
     mpu6050_gyro_range_t  gyro_range;
     uint8_t               dlpf;
+        mpu6050_raw_t         bias;        /* subtracted in mpu6050_read_raw */
 } mpu6050_t;
 
 /* ---- Core ---- */
@@ -85,5 +86,13 @@ int mpu6050_read     (mpu6050_t *m, mpu6050_data_t *out);
 
 /* Conversion only (no I2C): useful for FIFO data and host tests. */
 void mpu6050_convert (const mpu6050_t *m, const mpu6050_raw_t *raw, mpu6050_data_t *out);
+
+/* Average 'samples' readings and store them as bias. Keep the board still.
+ * If level is true, the board must lie flat (Z up): 1 g is removed from az
+ * so the board then reads 0, 0, 1 g. Gyro bias is always removed. */
+int mpu6050_calibrate(mpu6050_t *m, uint16_t samples, bool level);
+
+/* Clear the bias. */
+void mpu6050_clear_bias(mpu6050_t *m);
 
 #endif /* EDEV_MPU6050_H */
