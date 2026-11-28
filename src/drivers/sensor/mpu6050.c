@@ -60,5 +60,47 @@ int mpu6050_init(mpu6050_t *m, edev_i2c_bus_t *bus, uint8_t addr) {
 
     /* Wake up and select the gyro-X PLL clock in a single write:
      * SLEEP = 0, CLKSEL = 1. */
-    return edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_PWR_MGMT_1, 0x01);
+    r = edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_PWR_MGMT_1, 0x01);
+    if (r != EDEV_OK) return r;
+
+    /* known defaults after reset */
+    m->accel_range = MPU6050_ACCEL_2G;
+    m->gyro_range  = MPU6050_GYRO_250DPS;
+    m->dlpf        = MPU6050_DLPF_260HZ;
+    return EDEV_OK;
+}
+
+int mpu6050_set_accel_range(mpu6050_t *m, mpu6050_accel_range_t range) {
+
+    if (!m || range > MPU6050_ACCEL_16G) return EDEV_ERR_INVAL;
+    int r = mpu6050_update_bits(m, MPU6050_REG_ACCEL_CONFIG, MPU6050_FS_SEL_MASK,
+                                (uint8_t)(range << MPU6050_FS_SEL_SHIFT));
+    if (r == EDEV_OK) m->accel_range = range;
+    return r;
+}
+
+int mpu6050_set_gyro_range(mpu6050_t *m, mpu6050_gyro_range_t range) {
+
+    if (!m || range > MPU6050_GYRO_2000DPS) return EDEV_ERR_INVAL;
+    int r = mpu6050_update_bits(m, MPU6050_REG_GYRO_CONFIG, MPU6050_FS_SEL_MASK,
+                                (uint8_t)(range << MPU6050_FS_SEL_SHIFT));
+    if (r == EDEV_OK) m->gyro_range = range;
+    return r;
+}
+
+int mpu6050_set_dlpf(mpu6050_t *m, mpu6050_dlpf_t dlpf) {
+
+    if (!m || dlpf > MPU6050_DLPF_5HZ) return EDEV_ERR_INVAL;
+    int r = mpu6050_update_bits(m, MPU6050_REG_CONFIG, MPU6050_DLPF_CFG_MASK, (uint8_t)dlpf);
+    if (r == EDEV_OK) m->dlpf = (uint8_t)dlpf;
+    return r;
+}
+
+int mpu6050_set_sample_rate(mpu6050_t *m, uint16_t hz) {
+
+    if (!m || hz == 0) return EDEV_ERR_INVAL;
+    uint16_t base = (m->dlpf == MPU6050_DLPF_260HZ) ? 8000 : 1000;
+    uint16_t div  = (uint16_t)(base / hz);          /* rate = base / (1 + SMPLRT_DIV) */
+    if (div < 1 || div > 256) return EDEV_ERR_INVAL;
+    return edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_SMPLRT_DIV, (uint8_t)(div - 1));
 }
