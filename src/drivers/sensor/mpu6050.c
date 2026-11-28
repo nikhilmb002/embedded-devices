@@ -46,7 +46,13 @@ int mpu6050_init(mpu6050_t *m, edev_i2c_bus_t *bus, uint8_t addr) {
     r = mpu6050_who_am_i(m, &id);
     
     if (r != EDEV_OK) return r;
-    if (id != MPU6050_WHO_AM_I_VALUE) return EDEV_ERR_IO;   /* wrong chip */
+    
+    m->who_am_i = id;
+    switch (id) {
+    case 0x68: m->chip = MPU6050_CHIP_MPU6050; break;
+    case 0x70: m->chip = MPU6050_CHIP_MPU6500; break;
+    default:   m->chip = MPU6050_CHIP_OTHER;   break;   /* still continue */
+    }
 
     r = mpu6050_reset(m);
     

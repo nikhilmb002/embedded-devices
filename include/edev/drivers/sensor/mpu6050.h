@@ -6,9 +6,16 @@
 #include "edev/bus/i2c_dev.h"
 #include "edev/drivers/sensor/mpu6050_regs.h"
 
-/* The caller owns this struct. No hidden globals. */
+typedef enum {
+    MPU6050_CHIP_MPU6050 = 0,   /* WHO_AM_I 0x68 */
+    MPU6050_CHIP_MPU6500 = 1,   /* WHO_AM_I 0x70 (common "MPU6050" clone) */
+    MPU6050_CHIP_OTHER   = 2    /* unknown but responds: use at your own risk */
+} mpu6050_chip_t;
+
 typedef struct {
     edev_i2c_dev_t dev;
+    mpu6050_chip_t chip;
+    uint8_t        who_am_i;     /* the raw ID the chip returned */
 } mpu6050_t;
 
 /*
