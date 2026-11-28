@@ -40,7 +40,7 @@ add_library(edev_mpu6050 STATIC
     src/drivers/sensor/mpu6050.c
 )
 target_include_directories(edev_mpu6050 PUBLIC include)
-target_link_libraries(edev_mpu6050 PUBLIC edev_core)
+target_link_libraries(edev_mpu6050 PUBLIC edev_core m)
 
 # ---- Graphics layer: portable, works with any canvas ----
 add_library(edev_gfx STATIC

@@ -155,4 +155,15 @@ int mpu6050_standby     (mpu6050_t *m, uint8_t mask);
 int mpu6050_cycle_start (mpu6050_t *m, mpu6050_lp_rate_t rate);
 int mpu6050_cycle_stop  (mpu6050_t *m);
 
+typedef struct {
+    bool    accel_ok[3];          /* X, Y, Z */
+    bool    gyro_ok[3];
+    float   accel_change_pct[3];  /* self-test response vs factory trim, in percent */
+    float   gyro_change_pct[3];
+} mpu6050_selftest_t;
+
+/* Run the self-test. The board must be still and flat.
+ * Returns EDEV_OK if the test ran (check the flags for pass/fail). */
+int mpu6050_self_test(mpu6050_t *m, mpu6050_selftest_t *result);
+
 #endif /* EDEV_MPU6050_H */

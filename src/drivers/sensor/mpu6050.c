@@ -1,5 +1,6 @@
 #include "edev/drivers/sensor/mpu6050.h"
 #include "edev/edev_delay.h"
+#include <math.h>
 
 int mpu6050_update_bits(mpu6050_t *m, uint8_t reg, uint8_t mask, uint8_t value) {
     
@@ -437,4 +438,106 @@ int mpu6050_cycle_stop(mpu6050_t *m) {
     if (r != EDEV_OK) return r;
 
     return mpu6050_temp_enable(m, true);
+}
+
+/* Average n readings with the current settings. Output in raw counts. */
+static int avg_raw(mpu6050_t *m, int n, float acc[3], float gyr[3]) {
+
+    int32_t sa[3] = {0}, sg[3] = {0};
+    
+    for (int i = 0; i < n; i++) {
+        mpu6050_raw_t r;
+        int e = mpu6050_read_raw(m, &r);
+    
+        if (e != EDEV_OK) return e;
+    
+        sa[0] += r.ax; sa[1] += r.ay; sa[2] += r.az;
+        sg[0] += r.gx; sg[1] += r.gy; sg[2] += r.gz;
+        edev_delay_ms(5);
+    }
+    
+    for (int k = 0; k < 3; k++) { acc[k] = (float)sa[k] / n; gyr[k] = (float)sg[k] / n; }
+    return EDEV_OK;
+}
+
+int mpu6050_self_test(mpu6050_t *m, mpu6050_selftest_t *res) {
+
+    if (!m || !res) return EDEV_ERR_INVAL;
+
+    /* Self-test needs gyro +-250 dps and accel +-8 g. Save and restore settings. */
+    mpu6050_accel_range_t sav_a = m->accel_range;
+    mpu6050_gyro_range_t  sav_g = m->gyro_range;
+    mpu6050_raw_t         sav_b = m->bias;
+    mpu6050_clear_bias(m);
+
+    int r = mpu6050_set_gyro_range(m, MPU6050_GYRO_250DPS);
+    
+    if (r == EDEV_OK) r = mpu6050_set_accel_range(m, MPU6050_ACCEL_8G);
+    if (r != EDEV_OK) return r;
+    
+    edev_delay_ms(50);
+
+    float a_off[3], g_off[3], a_on[3], g_on[3];
+    r = avg_raw(m, 100, a_off, g_off);                         /* self-test off */
+    
+    if (r != EDEV_OK) return r;
+
+    mpu6050_update_bits(m, MPU6050_REG_GYRO_CONFIG,
+                        MPU6050_SELFTEST_X | MPU6050_SELFTEST_Y | MPU6050_SELFTEST_Z,
+                        MPU6050_SELFTEST_X | MPU6050_SELFTEST_Y | MPU6050_SELFTEST_Z);
+    mpu6050_update_bits(m, MPU6050_REG_ACCEL_CONFIG,
+                        MPU6050_SELFTEST_X | MPU6050_SELFTEST_Y | MPU6050_SELFTEST_Z,
+                        MPU6050_SELFTEST_X | MPU6050_SELFTEST_Y | MPU6050_SELFTEST_Z);
+    edev_delay_ms(250);
+    r = avg_raw(m, 100, a_on, g_on);                           /* self-test on */
+
+    mpu6050_update_bits(m, MPU6050_REG_GYRO_CONFIG,
+                        MPU6050_SELFTEST_X | MPU6050_SELFTEST_Y | MPU6050_SELFTEST_Z, 0);
+    mpu6050_update_bits(m, MPU6050_REG_ACCEL_CONFIG,
+                        MPU6050_SELFTEST_X | MPU6050_SELFTEST_Y | MPU6050_SELFTEST_Z, 0);
+    
+                        if (r != EDEV_OK) return r;
+
+    /* Self-test response (STR) = on - off, in raw counts. */
+    float a_str[3], g_str[3];
+    for (int k = 0; k < 3; k++) { a_str[k] = a_on[k] - a_off[k]; g_str[k] = g_on[k] - g_off[k]; }
+
+    /* Factory trim (FT) from the SELF_TEST registers. */
+    uint8_t st[4];
+    r = edev_i2c_dev_read_regs(&m->dev, MPU6050_REG_SELF_TEST_X, st, 4);
+    
+    if (r != EDEV_OK) return r;
+
+    float a_ft[3], g_ft[3];
+    for (int k = 0; k < 3; k++) {
+        uint8_t xa = (uint8_t)(((st[k] >> 3) & 0x1C) | ((st[3] >> (4 - 2 * k)) & 0x03));
+        uint8_t xg = (uint8_t)(st[k] & 0x1F);
+    
+        if (m->chip == MPU6050_CHIP_MPU6500) {
+            /* MPU6500: SELF_TEST_X/Y/Z hold one 8-bit trim code each (accel in 0x0D..0x0F,
+             * gyro in 0x00..0x02, not read here), so only the accel part is meaningful. */
+            xa = st[k];
+            a_ft[k] = (xa == 0) ? 0.0f : 2620.0f / 1.0f * powf(1.01f, (float)xa - 1.0f);
+            g_ft[k] = 0.0f;
+        } else {
+            a_ft[k] = (xa == 0) ? 0.0f
+                    : 4096.0f * 0.34f * powf(0.92f / 0.34f, ((float)xa - 1.0f) / 30.0f);
+            g_ft[k] = (xg == 0) ? 0.0f
+                    : 25.0f * 131.0f * powf(1.046f, (float)xg - 1.0f);
+            if (k == 1) g_ft[k] = -g_ft[k];                    /* Y gyro trim is negative */
+        }
+    }
+
+    for (int k = 0; k < 3; k++) {
+        res->accel_change_pct[k] = (a_ft[k] != 0.0f) ? (a_str[k] - a_ft[k]) / a_ft[k] * 100.0f : 0.0f;
+        res->gyro_change_pct[k]  = (g_ft[k] != 0.0f) ? (g_str[k] - g_ft[k]) / g_ft[k] * 100.0f : 0.0f;
+        /* pass if within +-14 % of factory trim (datasheet limit) */
+        res->accel_ok[k] = a_ft[k] != 0.0f && fabsf(res->accel_change_pct[k]) <= 14.0f;
+        res->gyro_ok[k]  = g_ft[k] != 0.0f && fabsf(res->gyro_change_pct[k])  <= 14.0f;
+    }
+
+    mpu6050_set_accel_range(m, sav_a);
+    mpu6050_set_gyro_range(m, sav_g);
+    m->bias = sav_b;
+    return EDEV_OK;
 }
