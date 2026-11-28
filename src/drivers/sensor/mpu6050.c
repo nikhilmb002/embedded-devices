@@ -165,7 +165,7 @@ int mpu6050_read(mpu6050_t *m, mpu6050_data_t *out) {
 }
 
 int mpu6050_calibrate(mpu6050_t *m, uint16_t samples, bool level) {
-    
+
     if (!m || samples == 0) return EDEV_ERR_INVAL;
 
     mpu6050_clear_bias(m);
@@ -199,4 +199,65 @@ int mpu6050_calibrate(mpu6050_t *m, uint16_t samples, bool level) {
 void mpu6050_clear_bias(mpu6050_t *m) {
 
     if (m) m->bias = (mpu6050_raw_t){0};
+}
+
+int mpu6050_int_config(mpu6050_t *m, bool active_low, bool open_drain, bool latch) {
+
+    uint8_t v = 0;
+    
+    if (active_low) v |= MPU6050_INT_LEVEL_LOW;
+    if (open_drain) v |= MPU6050_INT_OPEN_DRAIN;
+    if (latch)      v |= MPU6050_INT_LATCH_EN;
+    
+    v |= MPU6050_INT_RD_CLEAR;                       /* any read clears the status */
+    uint8_t mask = MPU6050_INT_LEVEL_LOW | MPU6050_INT_OPEN_DRAIN |
+                   MPU6050_INT_LATCH_EN | MPU6050_INT_RD_CLEAR;
+    return mpu6050_update_bits(m, MPU6050_REG_INT_PIN_CFG, mask, v);
+}
+
+int mpu6050_int_enable(mpu6050_t *m, uint8_t mask) {
+
+    if (!m) return EDEV_ERR_INVAL;
+    return edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_INT_ENABLE, mask);
+}
+
+int mpu6050_int_status(mpu6050_t *m, uint8_t *status) {
+
+    if (!m || !status) return EDEV_ERR_INVAL;
+    return edev_i2c_dev_read_regs(&m->dev, MPU6050_REG_INT_STATUS, status, 1);
+}
+
+int mpu6050_motion_config(mpu6050_t *m, uint8_t threshold, uint8_t duration_ms) {
+
+    if (!m) return EDEV_ERR_INVAL;
+    
+    int r = edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_MOT_THR, threshold);
+    
+    if (r != EDEV_OK) return r;
+    if (m->chip == MPU6050_CHIP_MPU6500)
+        /* ACCEL_INTEL_CTRL: enable intelligence (bit 7) + compare with previous sample (bit 6) */
+        return edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_MOT_DETECT_CTRL, 0xC0);
+    return edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_MOT_DUR, duration_ms);
+}
+
+int mpu6050_freefall_config(mpu6050_t *m, uint8_t threshold, uint8_t duration_ms) {
+
+    if (!m) return EDEV_ERR_INVAL;
+    if (m->chip != MPU6050_CHIP_MPU6050) return EDEV_ERR_NOSUPPORT;
+    
+    int r = edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_FF_THR, threshold);
+    
+    if (r != EDEV_OK) return r;
+    return edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_FF_DUR, duration_ms);
+}
+
+int mpu6050_zeromotion_config(mpu6050_t *m, uint8_t threshold, uint8_t duration_ms) {
+
+    if (!m) return EDEV_ERR_INVAL;
+    if (m->chip != MPU6050_CHIP_MPU6050) return EDEV_ERR_NOSUPPORT;
+    
+    int r = edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_ZRMOT_THR, threshold);
+    
+    if (r != EDEV_OK) return r;
+    return edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_ZRMOT_DUR, duration_ms);
 }

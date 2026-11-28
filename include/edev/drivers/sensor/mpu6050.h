@@ -95,4 +95,21 @@ int mpu6050_calibrate(mpu6050_t *m, uint16_t samples, bool level);
 /* Clear the bias. */
 void mpu6050_clear_bias(mpu6050_t *m);
 
+/* INT pin electrical configuration. */
+int mpu6050_int_config(mpu6050_t *m, bool active_low, bool open_drain, bool latch);
+
+/* Enable interrupt sources: OR of MPU6050_INT_DATA_RDY, _MOT, _FF, _ZMOT, _FIFO_OFLOW. */
+int mpu6050_int_enable(mpu6050_t *m, uint8_t mask);
+
+/* Read INT_STATUS (clears it). Bits are the same MPU6050_INT_* masks. */
+int mpu6050_int_status(mpu6050_t *m, uint8_t *status);
+
+/* Motion detection: threshold in units of 32 mg (MPU6050) or 4 mg (MPU6500 wake-on-motion),
+ * duration in ms (MPU6050 only; ignored on MPU6500). */
+int mpu6050_motion_config(mpu6050_t *m, uint8_t threshold, uint8_t duration_ms);
+
+/* Free-fall and zero-motion: MPU6050 only (EDEV_ERR_NOSUPPORT on others). */
+int mpu6050_freefall_config  (mpu6050_t *m, uint8_t threshold, uint8_t duration_ms);
+int mpu6050_zeromotion_config(mpu6050_t *m, uint8_t threshold, uint8_t duration_ms);
+
 #endif /* EDEV_MPU6050_H */
