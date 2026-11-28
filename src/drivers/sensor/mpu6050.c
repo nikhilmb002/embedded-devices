@@ -261,3 +261,109 @@ int mpu6050_zeromotion_config(mpu6050_t *m, uint8_t threshold, uint8_t duration_
     if (r != EDEV_OK) return r;
     return edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_ZRMOT_DUR, duration_ms);
 }
+
+static uint8_t fifo_sample_size(uint8_t s) {
+    
+    uint8_t n = 0;
+    
+    if (s & MPU6050_FIFO_ACCEL)  n += 6;
+    if (s & MPU6050_FIFO_TEMP)   n += 2;
+    if (s & MPU6050_FIFO_GYRO_X) n += 2;
+    if (s & MPU6050_FIFO_GYRO_Y) n += 2;
+    if (s & MPU6050_FIFO_GYRO_Z) n += 2;
+    
+    return n;
+}
+
+int mpu6050_fifo_reset(mpu6050_t *m) {
+
+    int r = mpu6050_update_bits(m, MPU6050_REG_USER_CTRL, MPU6050_USER_FIFO_EN, 0);
+    
+    if (r != EDEV_OK) return r;
+    
+    return mpu6050_update_bits(m, MPU6050_REG_USER_CTRL,
+                               MPU6050_USER_FIFO_RESET, MPU6050_USER_FIFO_RESET);
+}
+
+int mpu6050_fifo_start(mpu6050_t *m, uint8_t sources) {
+
+    if (!m || sources == 0) return EDEV_ERR_INVAL;
+    
+    int r = mpu6050_fifo_reset(m);
+    
+    if (r != EDEV_OK) return r;
+    r = edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_FIFO_EN, sources);
+    
+    if (r != EDEV_OK) return r;
+    m->fifo_sources = sources;
+    
+    return mpu6050_update_bits(m, MPU6050_REG_USER_CTRL,
+                               MPU6050_USER_FIFO_EN, MPU6050_USER_FIFO_EN);
+}
+
+int mpu6050_fifo_stop(mpu6050_t *m) {
+
+    if (!m) return EDEV_ERR_INVAL;
+    
+    int r = edev_i2c_dev_write_reg(&m->dev, MPU6050_REG_FIFO_EN, 0);
+    
+    if (r != EDEV_OK) return r;
+    return mpu6050_update_bits(m, MPU6050_REG_USER_CTRL, MPU6050_USER_FIFO_EN, 0);
+}
+
+int mpu6050_fifo_count(mpu6050_t *m, uint16_t *bytes) {
+
+    if (!m || !bytes) return EDEV_ERR_INVAL;
+    uint8_t b[2];
+    
+    int r = edev_i2c_dev_read_regs(&m->dev, MPU6050_REG_FIFO_COUNT_H, b, 2);
+    
+    if (r != EDEV_OK) return r;
+    *bytes = (uint16_t)(((uint16_t)b[0] << 8) | b[1]);
+    return EDEV_OK;
+}
+
+int mpu6050_fifo_read(mpu6050_t *m, mpu6050_raw_t *out, uint16_t max_samples, uint16_t *got) {
+
+    if (!m || !out || !got || max_samples == 0) return EDEV_ERR_INVAL;
+    
+    *got = 0;
+    uint8_t size = fifo_sample_size(m->fifo_sources);
+    
+    if (size == 0) return EDEV_ERR_INVAL;
+
+    uint16_t bytes;
+    int r = mpu6050_fifo_count(m, &bytes);
+    
+    if (r != EDEV_OK) return r;
+    
+    if (bytes >= 1024) {                     /* overflow: data is misaligned, restart */
+        mpu6050_fifo_start(m, m->fifo_sources);
+        return EDEV_ERR_IO;
+    }
+
+    uint16_t n = bytes / size;
+    
+    if (n > max_samples) n = max_samples;
+
+    for (uint16_t i = 0; i < n; i++) {
+        uint8_t b[14];
+        r = edev_i2c_dev_read_regs(&m->dev, MPU6050_REG_FIFO_R_W, b, size);
+    
+        if (r != EDEV_OK) return r;
+
+        mpu6050_raw_t s = {0};
+        uint8_t p = 0;
+        uint8_t src = m->fifo_sources;
+    
+        if (src & MPU6050_FIFO_ACCEL)  { s.ax = be16(&b[p]); s.ay = be16(&b[p+2]); s.az = be16(&b[p+4]); p += 6; }
+        if (src & MPU6050_FIFO_TEMP)   { s.temp = be16(&b[p]); p += 2; }
+        if (src & MPU6050_FIFO_GYRO_X) { s.gx = be16(&b[p]); p += 2; }
+        if (src & MPU6050_FIFO_GYRO_Y) { s.gy = be16(&b[p]); p += 2; }
+        if (src & MPU6050_FIFO_GYRO_Z) { s.gz = be16(&b[p]); p += 2; }
+    
+        out[i] = s;
+        (*got)++;
+    }
+    return EDEV_OK;
+}

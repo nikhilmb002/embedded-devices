@@ -60,7 +60,8 @@ typedef struct {
     mpu6050_accel_range_t accel_range;
     mpu6050_gyro_range_t  gyro_range;
     uint8_t               dlpf;
-        mpu6050_raw_t         bias;        /* subtracted in mpu6050_read_raw */
+    mpu6050_raw_t         bias;        /* subtracted in mpu6050_read_raw */
+    uint8_t               fifo_sources;   /* what fifo_start selected */
 } mpu6050_t;
 
 /* ---- Core ---- */
@@ -111,5 +112,20 @@ int mpu6050_motion_config(mpu6050_t *m, uint8_t threshold, uint8_t duration_ms);
 /* Free-fall and zero-motion: MPU6050 only (EDEV_ERR_NOSUPPORT on others). */
 int mpu6050_freefall_config  (mpu6050_t *m, uint8_t threshold, uint8_t duration_ms);
 int mpu6050_zeromotion_config(mpu6050_t *m, uint8_t threshold, uint8_t duration_ms);
+
+
+/* Choose what goes into the FIFO: OR of MPU6050_FIFO_ACCEL, _GYRO_X/_Y/_Z, _TEMP.
+ * Convenience: MPU6050_FIFO_ACCEL_GYRO = accel + all gyro axes (12 bytes/sample). */
+#define MPU6050_FIFO_ACCEL_GYRO (MPU6050_FIFO_ACCEL | MPU6050_FIFO_GYRO_X | \
+                                 MPU6050_FIFO_GYRO_Y | MPU6050_FIFO_GYRO_Z)
+
+int mpu6050_fifo_start(mpu6050_t *m, uint8_t sources);   /* reset, select sources, enable */
+int mpu6050_fifo_stop(mpu6050_t *m);
+int mpu6050_fifo_reset(mpu6050_t *m);
+int mpu6050_fifo_count(mpu6050_t *m, uint16_t *bytes);
+
+/* Read up to max_samples whole samples. Returns EDEV_OK and sets *got.
+ * The sample layout follows the sources chosen in fifo_start. */
+int mpu6050_fifo_read(mpu6050_t *m, mpu6050_raw_t *out, uint16_t max_samples, uint16_t *got);
 
 #endif /* EDEV_MPU6050_H */
