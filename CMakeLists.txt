@@ -12,6 +12,7 @@ option(EDEV_BUILD_TESTS    "Build host unit tests" OFF)
 # ---- Portable core: no hardware dependencies ----
 add_library(edev_core STATIC
     src/bus/i2c_dev.c
+    src/bus/edev_delay.c
 )
 target_include_directories(edev_core PUBLIC include)
 
@@ -34,6 +35,12 @@ add_library(edev_ssd1306 STATIC
 )
 target_include_directories(edev_ssd1306 PUBLIC include)
 target_link_libraries(edev_ssd1306 PUBLIC edev_core)
+
+add_library(edev_mpu6050 STATIC
+    src/drivers/sensor/mpu6050.c
+)
+target_include_directories(edev_mpu6050 PUBLIC include)
+target_link_libraries(edev_mpu6050 PUBLIC edev_core)
 
 # ---- Graphics layer: portable, works with any canvas ----
 add_library(edev_gfx STATIC
